@@ -35,54 +35,37 @@ class Camera:
         self.d = None
         self.focal_lengths = (0, 0)
         self.central_points = (0,0)
-
+        self.focal_lengths_in_pixel = (0, 0)
+        self.central_points_in_pixel = (0,0)
+        self.k1 = 0
+        self.k2 = 0
+        self.k3 = 0
+        self.p1 = 0
+        self.p2 = 0
         # 3d-2d projection pair (frame x points x 2d)
         self.measured_2d_points = []
 
-    def set_render(self, boolv):
-        self.render = boolv
 
-    def get_render(self):
-        return self.render
-
-    def get_image(self, img_idx):
-        for image in self.images:
-            if image.index == img_idx:
-                return image
-        return None
-
-    def set_calibration_data(self, ret, mtx, dist):
-        self.rms_err = ret
-        self.set_M(mtx)
-        self.set_d(dist)
 
     def set_M(self, M_):
         self.M = M_
         self.focal_lengths = (self.M[0, 0] * self.sensor_size[0] / self.image_res[0], self.M[1, 1] * self.sensor_size[1] / self.image_res[1])
         self.central_points = (self.M[0, 2] / self.image_res[0] - 0.5, self.M[1, 2] / self.image_res[1] - 0.5)
-        print(self.focal_lengths)
-
+        self.focal_lengths_in_pixel = (self.M[0, 0], self.M[1, 1])
+        self.central_points_in_pixel = (self.M[0, 2],self.M[1, 2])
     def set_d(self, d_):
         self.d = d_
+        self.k1 = self.d[0]
+        self.k2 = self.d[1]
+        self.k3 = self.d[4]
+        self.p1 = self.d[2]
+        self.p2 = self.d[3]
 
     def set_SE3(self, SE3_):
         self.SE3 = SE3_
 
-    def introduce_yourself(self):
-        print("Camera[{}] ({})".format(self.index, self.name))
 
-    def load_image(self, image_name, image_dir):
-        img = Image(image_name, image_dir)
-        self.images.append(img)
-        return img
 
-    def unproject_2d_to_3d(self, uv):
-        E = np.linalg.inv(self.SE3)[0:3, :]
-        K = self.M
-        ray_start = self.SE3[0:3, 3]
-        uv3 = np.array([uv[0], uv[1], 1]).astype('float32')
-        d_ray = np.linalg.inv(K.dot(E[0:3, 0:3])).dot(uv3)
-        return ray_start, d_ray
 
 
 # for intrinsic calibration
