@@ -1,5 +1,3 @@
-
-
 import numpy as np
 import cv2
 import os
@@ -36,6 +34,7 @@ class Camera:
         self.M = None
         self.d = None
         self.focal_lengths = (0, 0)
+        self.central_points = (0,0)
 
         # 3d-2d projection pair (frame x points x 2d)
         self.measured_2d_points = []
@@ -59,8 +58,9 @@ class Camera:
 
     def set_M(self, M_):
         self.M = M_
-        self.focal_lengths = (
-        self.M[0, 0] * self.sensor_size[0] / self.image_res[0], self.M[1, 1] * self.sensor_size[1] / self.image_res[1])
+        self.focal_lengths = (self.M[0, 0] * self.sensor_size[0] / self.image_res[0], self.M[1, 1] * self.sensor_size[1] / self.image_res[1])
+        self.central_points = (self.M[0, 2] / self.image_res[0] - 0.5, self.M[1, 2] / self.image_res[1] - 0.5)
+        print(self.focal_lengths)
 
     def set_d(self, d_):
         self.d = d_
@@ -95,10 +95,15 @@ cam2char = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 directory = r'C:\Users\ucanb\Desktop\scan_mov\cameraset\Calib'
 extrinsic_filename = 'coord_sys_output.xml'
 se3_xml_path = os.path.join(directory, extrinsic_filename)
-deneme_matrix = None
+
+
+bpy.context.scene.render.resolution_x = Camera.image_res[0]
+bpy.context.scene.render.resolution_y = Camera.image_res[1]
+
 for camera in cameras:
     if camera.is_available:
         intrinsics_xml_path = directory + "\Intrinsics" + cam2char[camera.index] + '.xml'
+        print(intrinsics_xml_path)
         cv_file = cv2.FileStorage(intrinsics_xml_path, cv2.FILE_STORAGE_READ)
         M = cv_file.getNode('M1').mat()
         d = cv_file.getNode('D1').mat()
@@ -109,22 +114,11 @@ for camera in cameras:
         se3 = cv_file.getNode('H_w_' + cam2char[camera.index]).mat()
 
         camera.set_SE3(se3)
-        print(se3)
+
         
     else:
         print("* Camera[{}] set as not available")
 
-'''
-for camera in cameras:
-    name = cam2char[camera.index]
-    # create camera data
-    cam_data = bpy.data.cameras.new("{}.{:03d}".format(name, i))
-    # create object camera data and insert the camera data
-    cam_ob = bpy.data.objects.new("{}Cam.{:03d}".format(name, i), cam_data)
-    cam_ob.matrix_world
-    # link into scene
-    bpy.context.collection.objects.link(cam_ob)
-'''
 
 for camera in cameras:
 
@@ -138,7 +132,10 @@ for camera in cameras:
 
     transformx180 = [[1,0,0,0],[0,-1,0,0],[0,0,-1,0],[0,0,0,1]]
     cam_ob.matrix_world =  camera.SE3.transpose() 
-
+    cam_ob.data.lens = (camera.focal_lengths[0] + camera.focal_lengths[1] ) *0.5
+    cam_ob.data.shift_x = camera.central_points[0]
+    cam_ob.data.shift_y = camera.central_points[1]
+    print()
 
     if bpy.context.scene.unit_settings.length_unit == 'MILLIMETERS':
         cam_ob.location[0] = cam_ob.location[0]/1000 
@@ -151,9 +148,6 @@ for camera in cameras:
     #cam_ob.rotation_euler[0] = cam_ob.rotation_euler[0]
     #cam_ob.rotation_euler[1] = cam_ob.rotation_euler[1] 
     #cam_ob.rotation_euler[2] = cam_ob.rotation_euler[2]
-    
-        
+
     # link into scene
     bpy.context.collection.objects.link(cam_ob)
-    
-
